@@ -1,0 +1,232 @@
+#### Manuscript: Hebbian Priming of Human motor learning ####
+#### Figure 2 - double blind experiment: PCMS+ vs. Sham ####
+# Script by Jonas Rud Bjørndal, 08/12-2023
+# R version 4.1.3 (2022-03-10)
+ 
+#### Load packages ####
+# If not already installed, then install before loading the library: install.packages("package-name")
+
+library(readxl) # used to import data from excel document
+library(tidyverse)  # incl ggplot2 package used to visualize data
+library(gridExtra) # used to combine subplots into a single Figure
+library(ggsignif)
+library(ggpubr)
+
+#### import SourceData excel file, with individual sheets for each sub figure - insert file location below ####
+excel_file <- "C:/insert your file location/SourceData.xlsx"
+
+#### Choose color scheme ####
+my_colors <- c("blue", "cadetblue3")
+
+
+#### Figure 2a - space for graphic ####
+fig2a <- ggplot() +
+  labs(tag="a")+
+  theme_classic()+ 
+  guides(x = "none", y = "none")+
+  theme(text = element_text(size=7))+
+  theme(plot.tag=element_text(size = 12, face="bold"))
+
+#### Figure 2b - Learning curve ####
+# Making different geom_lines for B1, B2 and B3
+data_Figure_2b <- read_excel(excel_file, "Figure_2b")
+data_Figure_2b$GROUP <- as.factor(data_Figure_2b$GROUP)
+
+names(my_colors) <- levels(factor(c(levels(data_Figure_2b$GROUP))))
+my_scale_fill_ballistic <- scale_fill_manual(name="GROUP", values = my_colors)
+my_scale_color_ballistic <- scale_color_manual(name="GROUP", values = my_colors)
+
+block1_line <- data_Figure_2b %>%  filter(TIME_blocked == "B1")
+block2_line <- data_Figure_2b %>%  filter(TIME_blocked == "B2")
+block3_line <- data_Figure_2b %>%  filter(TIME_blocked == "B3")
+day7_line <- data_Figure_2b %>%  filter(TIME_blocked == "Day7")
+
+
+pa <- ggplot(data = data_Figure_2b,
+       aes(x=TIME_binned, y=peak_acc_baseline_mean, group = GROUP, colour=GROUP, fill=GROUP))+
+  geom_errorbar(aes(ymin=peak_acc_baseline_mean, ymax=peak_acc_baseline_mean+peak_acc_baseline_sd), position = position_dodge(0.2), width = 0.25, show.legend = FALSE) +
+  geom_point(aes(color=GROUP))+
+  geom_line(data =   block1_line, aes(y = peak_acc_baseline_mean, x = TIME_binned))+
+  geom_line(data =   block2_line, aes(y = peak_acc_baseline_mean, x = TIME_binned))+
+  geom_line(data =   block3_line, aes(y = peak_acc_baseline_mean, x = TIME_binned))+
+  geom_line(data =   day7_line, aes(y = peak_acc_baseline_mean, x = TIME_binned))+
+  geom_hline(yintercept=100, linetype="dashed")+
+  coord_cartesian(ylim=c(90,160))+
+  scale_y_continuous(breaks=seq(90,160,10))+
+  theme_classic()+
+  labs(y="Peak acceleration (%baseline)", tag="b")+
+  scale_x_discrete(" ", labels = c("0" = "Baseline", "1" = "Post Stimulation", "2" = "", "3" = "", "4" = "B1", "5" = "", "6"="", "7" = "", "8" = "", "9" = "B2", "10" = "", "11"="", "12" = "", "13" = "", "14" = "B3", "15" = "", "16"="", "19"="","20"="","21"="7 day relearning", "22"="", "23"=""))+
+  theme(legend.position = c(0.15, 0.9))+
+  theme(legend.title = element_blank())+
+  my_scale_color_ballistic+
+  my_scale_fill_ballistic+
+  annotate("rect", xmin = 15.48, xmax = 15.52, ymin = 80, ymax = 170, fill="black")+
+  theme(text = element_text(size=7))+
+  theme(plot.tag=element_text(size = 12, face="bold"))
+
+## Figure 2b - boxplots inserted in Learning Curve 
+
+# Subset data 
+ballistic_practice = data_Figure_2b %>% 
+  filter(TIME_binned != "0") %>% 
+  filter(TIME_binned != "1")%>% 
+  filter(TIME_binned != "17") %>% 
+  filter(TIME_binned != "18") 
+# Barplot - practice blocks
+ballistic_practice_summary <- ballistic_practice %>%
+  group_by(GROUP, TIME_blocked) %>%  
+  summarize(
+    n_samples = n(),
+    peak_baseline_mean= mean(peak_acc_baseline_mean, na.rm=T),
+    peak_baseline_sd = sd(peak_acc_baseline_mean, na.rm=T)
+  ) %>%
+  ungroup() 
+
+paa <- ggplot(ballistic_practice_individual, aes(x = block_original, y = peak_baseline_mean, fill = PCMS)) +   
+  geom_boxplot(position = position_dodge(width = 0.9), alpha = 0.8, width = 0.7, outlier.shape = NA) +
+  geom_point(data =   ballistic_practice_individual, aes(y = peak_baseline_mean, x = block_original), position = position_jitterdodge(), size=0.1)+
+  labs(title="Pooled blocks", x="post PCMS", y="")+
+  theme_classic() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(legend.position = "none")+
+  #coord_cartesian(ylim=c(100,170))+
+  #scale_y_continuous(breaks=seq(100,170,20))+
+  geom_hline(yintercept=100, linetype="dashed", color = "black")+
+  scale_x_discrete("", labels = c("2" = "B1", "3" = "B2", "4"="B3", "7"="7Day relearning"))+
+  my_scale_color_ballistic+
+  my_scale_fill_ballistic+
+  geom_signif(
+    y_position = c(168, 172), xmin = c(2.7, 3.7), xmax = c(3.2, 4.2),
+    annotation = c("#"), tip_length = 0) +
+  theme(plot.title = element_text(size=7))+
+  theme(text = element_text(size=6))+
+  theme(axis.title.y = element_blank())
+
+fig2b <- pa+annotation_custom(ggplotGrob(paa),xmin=9, xmax=21.5, ymin=83, ymax=116)
+
+#### Figure 2c - individual data - start B1 to end B3 ####
+
+data_Figure_2c <- read_excel(excel_file, "Figure_2c")
+data_Figure_2c$GROUP <- as.factor(data_Figure_2c$GROUP)
+data_Figure_2c$peak_acc_baseline_mean <- as.numeric(data_Figure_2c$peak_acc_baseline_mean)
+data_Figure_2c$TIME <- as.factor(data_Figure_2c$TIME)
+data_Figure_2c$TIME <- relevel (data_Figure_2c$TIME, "Start_B1")
+data_Figure_2c$TIME <- factor(data_Figure_2c$TIME, levels=c("Start_B1", "End_B3", "Day7"))
+
+names(my_colors) <- levels(factor(c(levels(data_Figure_2c$GROUP))))
+my_scale_color_ballistic <- scale_color_manual(name="GROUP", values = my_colors)
+
+fig2c <- ggplot(data = data_Figure_2c,
+       aes(x=TIME, y=peak_acc_baseline_mean, group = PARTICIPANT, colour=GROUP))+
+  geom_line()+
+  geom_point()+
+  geom_hline(yintercept = 100, linetype="dashed")+
+  theme_classic()+
+   labs(tag="c")+
+  labs(x="blocks", y="Peak Acceleration (% of baseline)") +
+  theme(legend.position = "none")+
+  my_scale_color_ballistic+
+  scale_x_discrete(" ", labels = c("Start_B1" = "Start of B1", "End_B3"="End of B3"))+
+  facet_wrap(~GROUP, ncol=1)+
+  theme(strip.background = element_blank())+
+  stat_summary(fun.y=mean,geom="line",color="black", lwd=1,aes(group=1))+
+  theme(text = element_text(size=6))+
+  theme(plot.tag=element_text(size = 12, face="bold"))
+fig2c
+
+
+#### Figure 2d - space for graphic ####
+
+fig2d <- ggplot() +
+  labs(tag="d")+
+  theme_classic()+ 
+  guides(x = "none", y = "none")+
+  theme(text = element_text(size=7))+
+  theme(plot.tag=element_text(size = 12, face="bold"))
+
+
+####  Figure 2e - MEP norm Mmax ####
+
+
+data_Figure_2e <- read_excel(excel_file, "Figure_2e")
+data_Figure_2e$GROUP <- as.factor(data_Figure_2e$GROUP)
+data_Figure_2e$TIME <- as.factor(data_Figure_2e$TIME)
+data_Figure_2e$TIME <- factor(data_Figure_2e$TIME, levels=c("Baseline", "PostStimulation", "PostPractice"))
+
+names(my_colors) <- levels(factor(c(levels(data_Figure_2e$GROUP))))
+my_scale_color_mep <- scale_color_manual(name="GROUP", values = my_colors)
+my_scale_fill_mep <- scale_fill_manual(name="GROUP", values = my_colors)
+
+# MEP mmax - boxplot
+fig2e <- ggplot(data= mep_means_individual,
+                aes(x=block, y=MEP_mmax_mean, fill=PCMS))+
+  geom_boxplot(position = position_dodge(width = 0.9), alpha = 0.8, width = 0.7, outlier.shape = NA) +
+  geom_point(data =   mep_means_individual, aes(y = MEP_mmax_mean, x = block), position = position_jitterdodge(), size=1)+
+  theme_classic()+
+  theme(legend.position = c(0.2, 0.9))+
+  theme(legend.title = element_blank())+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  labs(tag="e")+
+  labs(x="blocks", y="MEP amplitude (%Mmax)") +
+  scale_x_discrete("", labels = c("2" = "Baseline", "3" = "Post Stimulation", "15" = "Post Practice"))+
+  my_scale_color_mep+
+  my_scale_fill_mep+
+  annotate("text", x = 1.78, y = 0.23, label = "*") +
+  geom_signif(
+    y_position = c(19,29, 26), xmin = c(0.7,1.7, 2.7), xmax = c(1.3,2.3, 3.3),
+    annotation = c("#","#", "#"), tip_length = 0)+
+  theme(text = element_text(size=7))+
+  theme(plot.tag=element_text(size = 12, face="bold"))+ 
+  guides(fill = guide_legend(override.aes = list(shape = NA)))+
+  theme(legend.key.size = unit(0.2, "cm"))
+
+####  Figure 2f - individual data MEP norm Mmax ####
+data_Figure_2f <- read_excel(excel_file, "Figure_2f")
+data_Figure_2f$PARTICIPANT <- as.factor(data_Figure_2f$PARTICIPANT)
+data_Figure_2f$GROUP <- as.factor(data_Figure_2f$GROUP)
+data_Figure_2f$TIME <- as.factor(data_Figure_2f$TIME)
+data_Figure_2f$TIME <- factor(data_Figure_2f$TIME, levels=c("Baseline", "Post Stimulations", "Post Practice"))
+
+names(my_colors) <- levels(factor(c(levels(data_Figure_2f$GROUP))))
+my_scale_color_mep <- scale_color_manual(name="GROUP", values = my_colors)
+my_scale_fill_mep <- scale_fill_manual(name="GROUP", values = my_colors)
+
+
+fig2F <- ggplot(data = data_Figure_2f,
+                aes(x=TIME, y=MEP_mmax_baseline_mean, group = PARTICIPANT, colour=GROUP))+
+  geom_point()+
+  geom_line()+
+  geom_hline(yintercept=100, linetype="dashed")+
+  theme_classic()+
+  theme(legend.position = "none")+
+  scale_x_discrete("", labels = c("Baseline" = "Baseline", "Post Stimulations" = "Post Stimulation", "Post Practice" = "Post Practice"))+
+  labs(x="", y="MEP amplitude (% of baseline)", tag="f")+
+  my_scale_color_mep+
+  stat_summary(fun.y=mean,geom="line", color="black", lwd=1,aes(group=1))+
+  facet_wrap(~GROUP, ncol=1)+
+  theme(strip.background = element_blank())+
+  theme(text = element_text(size=6))+
+  theme(plot.tag=element_text(size = 12, face="bold"))
+
+#### Combine complete graph ####
+
+# Figure 1. Version 1
+lay <- rbind(c(1,1,2,2,2,2,2,2,3,3,3),
+             c(1,1,2,2,2,2,2,2,3,3,3),
+             c(1,1,2,2,2,2,2,2,3,3,3),
+             c(1,1,2,2,2,2,2,2,3,3,3),
+             c(1,1,2,2,2,2,2,2,3,3,3),
+             c(4,4,4,4,5,5,5,5,6,6,6),
+             c(4,4,4,4,5,5,5,5,6,6,6),
+             c(4,4,4,4,5,5,5,5,6,6,6),
+             c(4,4,4,4,5,5,5,5,6,6,6))
+fig2 <- grid.arrange(fig2a, fig2b, fig2c, fig2d, fig2e, fig2F, layout_matrix = lay)
+
+#### Save figure with correct parameters #### 
+ggsave(file="path to save final figure/Figure2.pdf", fig2, width = 7.04, height=7, dpi=300)
+
+# Note: Graphics for part "a" and "d" was inserted afterwards in software allowing vector graphics
+
+
+
+
